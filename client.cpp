@@ -1,34 +1,32 @@
 #include "client.h"
+#include <QTcpSocket>
+#include <QHostAddress>
+#include <QDebug>
+#include <QDataStream>
 
-client::client(QTcpSocket *conn, QObject *parent):
-    QObject::QObject(parent)
+client::client() :  QObject::QObject()
 {
-    qDebug() << this;
-    this->conn = conn;
-
+    conn = new QTcpSocket();
+    connect(conn, &QTcpSocket::connected, this, &client::connectionCreated);
+    conn->connectToHost(QHostAddress(serverAddress), serverPort);
+    connect(conn, &QTcpSocket::readyRead, this, &client::gotData);
 }
 
-void client::gotMessage()
+void client::connectionCreated()
 {
+    qDebug() << "Connection created";
+}
 
-    QByteArray bytes;
-    QDataStream stream(&bytes, QIODevice::ReadOnly);
-    stream.setDevice(conn);
-    stream.setVersion(QDataStream::Qt_5_9);
-    stream.startTransaction();
-    QString data;
-    stream >> data;
-    QTextStream(stdout) << this << " poslal: " << data << endl;
+void client::gotData()
+{
+    qDebug() << "Data from server: " << conn->readAll();
+}
+
+void client::sendData(QByteArray data)
+{
     QByteArray block;
     QDataStream output(&block, QIODevice::WriteOnly);
-    output.setVersion(QDataStream::Qt_5_9);
+    output.setVersion(QDataStream::Qt_5_0);
     output << data;
-    output << QString(data);
     conn->write(block);
-    stream.abortTransaction();
-}
-
-void client::clientDisconnected()
-{
-    emit(disconnected());
 }
